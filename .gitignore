@@ -1,0 +1,6 @@
+# Build artifacts
+/_build
+/wallet
+
+*.so
+*.o
