@@ -9,7 +9,7 @@ import (
 	"github.com/hyperledger/fabric/common/flogging"
 )
 
-var logger = flogging.MustGetLogger("dilithium")
+var logger = flogging.MustGetLogger("ml-dsa")
 
 func main() {
 	ccID := os.Getenv("CC_ID")
@@ -24,7 +24,7 @@ func main() {
 	// Get FPC Contract
 	contract := fpc.GetContract(network, ccID)
 
-	dirPath := "/project/src/github.com/hyperledger/fabric-private-chaincode/samples/chaincode/dilithium/client_app/"
+	dirPath := "/project/src/github.com/hyperledger/fabric-private-chaincode/samples/chaincode/fpc-ml-dsa-contract/client_app/"
 	sigPaths := [2]string{
 		dirPath + "dummy_sig.txt",
 		dirPath + "dummy_sig2.txt",

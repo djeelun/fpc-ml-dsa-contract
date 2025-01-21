@@ -2,7 +2,7 @@ TOP = ../../..
 include $(TOP)/build.mk
 
 BUILD_DIR := _build
-CC_NAME ?= fpc-dilithium
+CC_NAME ?= fpc-ml-dsa
 DOCKER_IMAGE_NAME := fpc/${CC_NAME}
 
 $(BUILD_DIR):

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5.1)
-project(DILITHIUM_CC)
+project(ML_DSA_CC)
 
 include(FetchContent)
 
@@ -31,7 +31,7 @@ set(DILITHIUM_REF_DIR ${DILITHIUM_DIR}/dilithium-src/ref)
 # This has to do with restrictions on I/O and randomness in SGX enclaves
 
 set(SOURCE_FILES
-    dilithium_cc.cpp
+    ml_dsa_cc.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/utils/hexutils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/randombytes/randombytes.c
     ${DILITHIUM_REF_DIR}/fips202.c
