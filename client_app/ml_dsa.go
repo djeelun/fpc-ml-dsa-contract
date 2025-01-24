@@ -24,6 +24,7 @@ func main() {
 	// Get FPC Contract
 	contract := fpc.GetContract(network, ccID)
 
+  // Test valid and invalid signatures
 	dirPath := "/project/src/github.com/hyperledger/fabric-private-chaincode/samples/chaincode/fpc-ml-dsa-contract/client_app/"
 	sigPaths := [2]string{
 		dirPath + "dummy_sig.txt",
@@ -35,16 +36,71 @@ func main() {
 		dirPath + "dummy_sig_err2.txt",
 	}
 	
+	logger.Infof("--> ##### Test valid and invalid signatures #####")
 	for _, sigPath := range sigPaths {
 	 	verifySig(sigPath, contract, false)
-    	}
+  }
 	for _, sigPath := range sigPathsErr {
 		verifySig(sigPath, contract, true)
-    	}
+  }
+
+  // Test storing signatures on chain
+	logger.Infof("--> ##### Test storing signatures #####")
+  storeSig(sigPaths[0], contract)
 }
 
 func verifySig(path string, contract fpc.Contract, expectFail bool) {
-	logger.Infof("--> READING DATA FROM: %s", path)
+  signature, message, context, pubkey := getValuesFromFile(path)
+
+	// Invoke FPC Chaincode verifySig
+	if expectFail {
+	  logger.Infof("--> (FAILURE EXPECTED) Invoke FPC Chaincode: verifySig")
+	} else {
+	  logger.Infof("--> Invoke FPC Chaincode: verifySig")
+  }
+	result, err := contract.EvaluateTransaction("verifySig", signature, message, context, pubkey)
+	if err != nil {
+		if expectFail {
+			logger.Infof("--> Result: %v", err)
+		} else {
+			logger.Fatalf("Failed to Submit transaction: %v", err)
+		}
+	} else {
+		logger.Infof("--> Result: %s", string(result))
+	}
+}
+
+func storeSig(path string, contract fpc.Contract) {
+  signature, message, context, pubkey := getValuesFromFile(path)
+
+	logger.Infof("--> (FAILURE EXPECTED) Invoke FPC Chaincode: getVerificationResult")
+	result, err := contract.SubmitTransaction("getVerificationResult", signature)
+	if err != nil {
+    logger.Infof("--> Result: %v", err)
+	} else {
+		logger.Infof("--> Result: %s", string(result))
+	}
+
+	// Invoke FPC Chaincode verifySig
+	logger.Infof("--> Invoke FPC Chaincode: putVerificationResult")
+	result, err = contract.SubmitTransaction("putVerificationResult", signature, message, context, pubkey)
+	if err != nil {
+		logger.Infof("--> Result: %v", err)
+	} else {
+		logger.Infof("--> Result: %s", string(result))
+	}
+
+	logger.Infof("--> Invoke FPC Chaincode: getVerificationResult")
+	result, err = contract.SubmitTransaction("getVerificationResult", signature)
+	if err != nil {
+    logger.Infof("--> Result: %v", err)
+	} else {
+		logger.Infof("--> Result: %s", string(result))
+	}
+}
+
+func getValuesFromFile(path string) (string, string, string, string) {
+	logger.Infof("--> reading data from: %s", path)
 	// Get signature etc. from file
 	// with help from https://stackoverflow.com/a/16615559
 	file, err := os.Open(path) 
@@ -78,19 +134,6 @@ func verifySig(path string, contract fpc.Contract, expectFail bool) {
 	// logger.Infof("context: %s", context);
 	// logger.Infof("pubkey: %s", pubkey);
 
-	// Invoke FPC Chaincode verifySig
-	logger.Infof("--> Invoke FPC Chaincode: verifySig")
-	if expectFail {
-		logger.Infof("--> Failure expected next...")
-	}
-	result, err := contract.SubmitTransaction("verifySig", signature, message, context, pubkey)
-	if err != nil {
-		if expectFail {
-			logger.Infof("--> Result: %v", err)
-		} else {
-			logger.Fatalf("Failed to Submit transaction: %v", err)
-		}
-	} else {
-		logger.Infof("--> Result: %s", string(result))
-	}
+
+  return signature, message, context, pubkey
 }
