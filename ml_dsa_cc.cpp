@@ -6,14 +6,19 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <vector>
+#include <numeric>
 extern "C" {
-    #include "randombytes.h"   
-    #include "sign.h"
+    #include "api.h"
 }
+
+#define OK "OK"
+#define VERIFICATION_SUCCESS "SUCCESS: SIGNATURE IS VALID"
+#define VERIFICATION_FAILURE "FAILURE: SIGNATURE IS NOT VALID"
+#define KEY_NOT_FOUND "KEY NOT FOUND"
 
 // Verify signature given public key, message, and signature
 // Arguments are given as hex strings
-int verifySig(std::string _sig, std::string _m, std::string _ctx, std::string _pk)
+int verifySig(std::string _sig, std::string _m, std::string _ctx, std::string _pk, std::string _ml_dsa_version)
 {
     LOG_DEBUG("ML_DSA_CC: +++ verifySig +++");
     
@@ -27,13 +32,46 @@ int verifySig(std::string _sig, std::string _m, std::string _ctx, std::string _p
     const uint8_t* pkArr = &pk[0];
 
     if (_ctx.empty()) {
-    	return crypto_sign_verify(sigArr, sig.size(), mArr, m.size(), NULL, 0, pkArr);
+        if (_ml_dsa_version == "3") {
+    	      return pqcrystals_dilithium3_ref_verify(sigArr, sig.size(), mArr, m.size(), NULL, 0, pkArr);
+        } else if (_ml_dsa_version == "5") {
+    	      return pqcrystals_dilithium5_ref_verify(sigArr, sig.size(), mArr, m.size(), NULL, 0, pkArr);
+        } else {
+    	      return pqcrystals_dilithium2_ref_verify(sigArr, sig.size(), mArr, m.size(), NULL, 0, pkArr);
+        }
     }
 
     std::vector<uint8_t> ctx = hex_string_to_bytes(_ctx);
     uint8_t* ctxArr = &ctx[0];
+
+    if (_ml_dsa_version == "3") {
+        return pqcrystals_dilithium3_ref_verify(sigArr, sig.size(), mArr, m.size(), ctxArr, ctx.size(), pkArr);
+    } else if (_ml_dsa_version == "5") {
+        return pqcrystals_dilithium5_ref_verify(sigArr, sig.size(), mArr, m.size(), ctxArr, ctx.size(), pkArr);
+    } else {
+        return pqcrystals_dilithium2_ref_verify(sigArr, sig.size(), mArr, m.size(), ctxArr, ctx.size(), pkArr);
+    }
+}
+
+// Store verification result publicly on the ledger
+// Entry is defined as (key:value)->(signature:result)
+std::string putVerificationResult(std::string sig, bool verificationResult, shim_ctx_ptr_t ctx) {
+    put_public_state(sig.c_str(), (uint8_t*)&verificationResult, sizeof(verificationResult), ctx);
+    return OK;
+}
+
+std::string getVerificationResult(std::string sig, shim_ctx_ptr_t ctx) {
+    bool verificationResult;
+    uint32_t verificationResultLen;
+    get_public_state(sig.c_str(), (uint8_t*)&verificationResult, sizeof(verificationResult), &verificationResultLen, ctx);
+    if (verificationResultLen == 0) {
+        return KEY_NOT_FOUND;
+    }
+    if (!verificationResult) {
+        return VERIFICATION_FAILURE;
+    }
     
-    return crypto_sign_verify(sigArr, sig.size(), mArr, m.size(), ctxArr, ctx.size(), pkArr);
+    return VERIFICATION_SUCCESS;
 }
 
 // implements chaincode logic for invoke
@@ -46,27 +84,23 @@ int invoke(
     LOG_DEBUG("ML_DSA_CC: +++ Executing ML-DSA chaincode invocation +++");
 
     std::string function_name;
-    std::vector<std::string> params;
+    std::vector<std::string> params; // sig, msg, ctx, pk, ml_dsa_version (respectively)
     get_func_and_params(function_name, params, ctx);
-    // std::string asset_name = params[0];
     std::string result;
 
     if (function_name == "verifySig")
     {
-        std::string sig = params[0];
-        std::string msg = params[1];
-        std::string ctx = params[2];
-        std::string pubkey = params[3];
-        const int is_valid = verifySig(sig, msg, ctx, pubkey);
-        
-        std::stringstream ss;
-        
-        if (is_valid == 0) {
-            result = "SUCCESS: Signature is valid\n";
-        } else { // is_valid == -1
-            ss << "FAILURE: Signature is not valid " << std::to_string(is_valid) << '\n';
-            result = ss.str();
-        }
+        const int is_valid = verifySig(params[0], params[1], params[2], params[3], params[4]);
+        result = is_valid ? VERIFICATION_FAILURE : VERIFICATION_SUCCESS;
+    }
+    else if (function_name == "putVerificationResult") {
+        const int is_valid = verifySig(params[0], params[1], params[2], params[3], params[4]);
+        const bool verificationResult = (is_valid == 0);
+
+        result = putVerificationResult(params[0], verificationResult, ctx);
+    }
+    else if (function_name == "getVerificationResult") {
+        result = getVerificationResult(params[0], ctx);
     }
     else
     {
