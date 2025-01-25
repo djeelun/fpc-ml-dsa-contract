@@ -50,7 +50,7 @@ func main() {
 }
 
 func verifySig(path string, contract fpc.Contract, expectFail bool) {
-  signature, message, context, pubkey := getValuesFromFile(path)
+  signature, message, context, pubkey, version := getValuesFromFile(path)
 
 	// Invoke FPC Chaincode verifySig
 	if expectFail {
@@ -58,7 +58,7 @@ func verifySig(path string, contract fpc.Contract, expectFail bool) {
 	} else {
 	  logger.Infof("--> Invoke FPC Chaincode: verifySig")
   }
-	result, err := contract.EvaluateTransaction("verifySig", signature, message, context, pubkey)
+	result, err := contract.EvaluateTransaction("verifySig", signature, message, context, pubkey, version)
 	if err != nil {
 		if expectFail {
 			logger.Infof("--> Result: %v", err)
@@ -71,7 +71,7 @@ func verifySig(path string, contract fpc.Contract, expectFail bool) {
 }
 
 func storeSig(path string, contract fpc.Contract) {
-  signature, message, context, pubkey := getValuesFromFile(path)
+  signature, message, context, pubkey, version := getValuesFromFile(path)
 
 	logger.Infof("--> (FAILURE EXPECTED) Invoke FPC Chaincode: getVerificationResult")
 	result, err := contract.SubmitTransaction("getVerificationResult", signature)
@@ -83,7 +83,7 @@ func storeSig(path string, contract fpc.Contract) {
 
 	// Invoke FPC Chaincode verifySig
 	logger.Infof("--> Invoke FPC Chaincode: putVerificationResult")
-	result, err = contract.SubmitTransaction("putVerificationResult", signature, message, context, pubkey)
+	result, err = contract.SubmitTransaction("putVerificationResult", signature, message, context, pubkey, version)
 	if err != nil {
 		logger.Infof("--> Result: %v", err)
 	} else {
@@ -99,7 +99,7 @@ func storeSig(path string, contract fpc.Contract) {
 	}
 }
 
-func getValuesFromFile(path string) (string, string, string, string) {
+func getValuesFromFile(path string) (string, string, string, string, string) {
 	logger.Infof("--> reading data from: %s", path)
 	// Get signature etc. from file
 	// with help from https://stackoverflow.com/a/16615559
@@ -120,7 +120,7 @@ func getValuesFromFile(path string) (string, string, string, string) {
 	 	logger.Fatal(err)
 	}
 	
-	if len(stringsList) < 4 {
+	if len(stringsList) < 5 {
 		logger.Fatal("Not enough parameters in signature text file")
 	}
 	
@@ -128,6 +128,7 @@ func getValuesFromFile(path string) (string, string, string, string) {
 	message := stringsList[1]
 	context := stringsList[2]
 	pubkey := stringsList[3]
+  version := stringsList[4]
 
 	// logger.Infof("signature: %s", signature);
 	// logger.Infof("message: %s", message);
@@ -135,5 +136,5 @@ func getValuesFromFile(path string) (string, string, string, string) {
 	// logger.Infof("pubkey: %s", pubkey);
 
 
-  return signature, message, context, pubkey
+  return signature, message, context, pubkey, version
 }

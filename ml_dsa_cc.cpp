@@ -8,8 +8,7 @@
 #include <vector>
 #include <numeric>
 extern "C" {
-    #include "randombytes.h"   
-    #include "sign.h"
+    #include "api.h"
 }
 
 #define OK "OK"
@@ -19,7 +18,7 @@ extern "C" {
 
 // Verify signature given public key, message, and signature
 // Arguments are given as hex strings
-int verifySig(std::string _sig, std::string _m, std::string _ctx, std::string _pk)
+int verifySig(std::string _sig, std::string _m, std::string _ctx, std::string _pk, std::string _ml_dsa_version)
 {
     LOG_DEBUG("ML_DSA_CC: +++ verifySig +++");
     
@@ -33,13 +32,25 @@ int verifySig(std::string _sig, std::string _m, std::string _ctx, std::string _p
     const uint8_t* pkArr = &pk[0];
 
     if (_ctx.empty()) {
-    	  return crypto_sign_verify(sigArr, sig.size(), mArr, m.size(), NULL, 0, pkArr);
+        if (_ml_dsa_version == "3") {
+    	      return pqcrystals_dilithium3_ref_verify(sigArr, sig.size(), mArr, m.size(), NULL, 0, pkArr);
+        } else if (_ml_dsa_version == "5") {
+    	      return pqcrystals_dilithium5_ref_verify(sigArr, sig.size(), mArr, m.size(), NULL, 0, pkArr);
+        } else {
+    	      return pqcrystals_dilithium2_ref_verify(sigArr, sig.size(), mArr, m.size(), NULL, 0, pkArr);
+        }
     }
 
     std::vector<uint8_t> ctx = hex_string_to_bytes(_ctx);
     uint8_t* ctxArr = &ctx[0];
-    
-    return crypto_sign_verify(sigArr, sig.size(), mArr, m.size(), ctxArr, ctx.size(), pkArr);
+
+    if (_ml_dsa_version == "3") {
+        return pqcrystals_dilithium3_ref_verify(sigArr, sig.size(), mArr, m.size(), ctxArr, ctx.size(), pkArr);
+    } else if (_ml_dsa_version == "5") {
+        return pqcrystals_dilithium5_ref_verify(sigArr, sig.size(), mArr, m.size(), ctxArr, ctx.size(), pkArr);
+    } else {
+        return pqcrystals_dilithium2_ref_verify(sigArr, sig.size(), mArr, m.size(), ctxArr, ctx.size(), pkArr);
+    }
 }
 
 // Store verification result publicly on the ledger
@@ -73,37 +84,23 @@ int invoke(
     LOG_DEBUG("ML_DSA_CC: +++ Executing ML-DSA chaincode invocation +++");
 
     std::string function_name;
-    std::vector<std::string> params;
+    std::vector<std::string> params; // sig, msg, ctx, pk, ml_dsa_version (respectively)
     get_func_and_params(function_name, params, ctx);
     std::string result;
 
     if (function_name == "verifySig")
     {
-        std::string _sig = params[0];
-        std::string _msg = params[1];
-        std::string _ctx = params[2];
-        std::string _pubkey = params[3];
-        const int is_valid = verifySig(_sig, _msg, _ctx, _pubkey);
-        
-        if (is_valid == 0) {
-            result = VERIFICATION_SUCCESS;
-        } else { // is_valid == -1
-            result = VERIFICATION_FAILURE;
-        }
+        const int is_valid = verifySig(params[0], params[1], params[2], params[3], params[4]);
+        result = is_valid ? VERIFICATION_FAILURE : VERIFICATION_SUCCESS;
     }
     else if (function_name == "putVerificationResult") {
-        std::string _sig = params[0];
-        std::string _msg = params[1];
-        std::string _ctx = params[2];
-        std::string _pubkey = params[3];
-        const int is_valid = verifySig(_sig, _msg, _ctx, _pubkey);
+        const int is_valid = verifySig(params[0], params[1], params[2], params[3], params[4]);
         const bool verificationResult = (is_valid == 0);
 
-        result = putVerificationResult(_sig, verificationResult, ctx);
+        result = putVerificationResult(params[0], verificationResult, ctx);
     }
     else if (function_name == "getVerificationResult") {
-        std::string sig = params[0];
-        result = getVerificationResult(sig, ctx);
+        result = getVerificationResult(params[0], ctx);
     }
     else
     {
