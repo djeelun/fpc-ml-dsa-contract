@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+echo "SETTING GOPATH AND FPCPATH ENVIRONMENT VARIABLES"
+
+export GOPATH=/home/dace/go
+export FPC_PATH=$GOPATH/src/github.com/hyperledger/fabric-private-chaincode
+
