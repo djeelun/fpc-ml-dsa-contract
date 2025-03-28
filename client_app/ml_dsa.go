@@ -47,6 +47,10 @@ func main() {
   // Test storing signatures on chain
 	logger.Infof("--> ##### Test storing signatures #####")
   storeSig(sigPaths[0], contract)
+
+  // Test updatable encryption
+  logger.Infof("--> ##### Test storing signatures #####")
+  updateCipher(contract)
 }
 
 func verifySig(path string, contract fpc.Contract, expectFail bool) {
@@ -97,6 +101,16 @@ func storeSig(path string, contract fpc.Contract) {
 	} else {
 		logger.Infof("--> Result: %s", string(result))
 	}
+}
+
+func updateCipher(contract fpc.Contract) {
+  logger.Infof("--> Invoke FPC Chaincode: updateCipher")
+  result, err := contract.SubmitTransaction("updateCipher", "foo", "bar") // Replace with cipher id and update token
+  if err != nil {
+    logger.Infof("--> Result: %v", err)
+  } else {
+    logger.Infof("--> Result: %s", string(result))
+  }
 }
 
 func getValuesFromFile(path string) (string, string, string, string, string) {

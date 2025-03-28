@@ -1,78 +1,13 @@
 #include "shim.h"
 #include "logging.h"
-#include "hexutils.h"
+#include "tdue.h"
+#include "verification.h"
 #include <string>
 #include <sstream>
 #include <stddef.h>
 #include <stdint.h>
 #include <vector>
 #include <numeric>
-extern "C" {
-    #include "api.h"
-}
-
-#define OK "OK"
-#define VERIFICATION_SUCCESS "SUCCESS: SIGNATURE IS VALID"
-#define VERIFICATION_FAILURE "FAILURE: SIGNATURE IS NOT VALID"
-#define KEY_NOT_FOUND "KEY NOT FOUND"
-
-// Verify signature given public key, message, and signature
-// Arguments are given as hex strings
-int verifySig(std::string _sig, std::string _m, std::string _ctx, std::string _pk, std::string _ml_dsa_version)
-{
-    LOG_DEBUG("ML_DSA_CC: +++ verifySig +++");
-    
-    std::vector<uint8_t> sig = hex_string_to_bytes(_sig); // from hexutils.h
-    const uint8_t* sigArr = &sig[0];
- 
-    std::vector<uint8_t> m = hex_string_to_bytes(_m);
-    const uint8_t* mArr = &m[0];
-
-    std::vector<uint8_t> pk = hex_string_to_bytes(_pk);
-    const uint8_t* pkArr = &pk[0];
-
-    if (_ctx.empty()) {
-        if (_ml_dsa_version == "3") {
-    	      return pqcrystals_dilithium3_ref_verify(sigArr, sig.size(), mArr, m.size(), NULL, 0, pkArr);
-        } else if (_ml_dsa_version == "5") {
-    	      return pqcrystals_dilithium5_ref_verify(sigArr, sig.size(), mArr, m.size(), NULL, 0, pkArr);
-        } else {
-    	      return pqcrystals_dilithium2_ref_verify(sigArr, sig.size(), mArr, m.size(), NULL, 0, pkArr);
-        }
-    }
-
-    std::vector<uint8_t> ctx = hex_string_to_bytes(_ctx);
-    uint8_t* ctxArr = &ctx[0];
-
-    if (_ml_dsa_version == "3") {
-        return pqcrystals_dilithium3_ref_verify(sigArr, sig.size(), mArr, m.size(), ctxArr, ctx.size(), pkArr);
-    } else if (_ml_dsa_version == "5") {
-        return pqcrystals_dilithium5_ref_verify(sigArr, sig.size(), mArr, m.size(), ctxArr, ctx.size(), pkArr);
-    } else {
-        return pqcrystals_dilithium2_ref_verify(sigArr, sig.size(), mArr, m.size(), ctxArr, ctx.size(), pkArr);
-    }
-}
-
-// Store verification result publicly on the ledger
-// Entry is defined as (key:value)->(signature:result)
-std::string putVerificationResult(std::string sig, bool verificationResult, shim_ctx_ptr_t ctx) {
-    put_public_state(sig.c_str(), (uint8_t*)&verificationResult, sizeof(verificationResult), ctx);
-    return OK;
-}
-
-std::string getVerificationResult(std::string sig, shim_ctx_ptr_t ctx) {
-    bool verificationResult;
-    uint32_t verificationResultLen;
-    get_public_state(sig.c_str(), (uint8_t*)&verificationResult, sizeof(verificationResult), &verificationResultLen, ctx);
-    if (verificationResultLen == 0) {
-        return KEY_NOT_FOUND;
-    }
-    if (!verificationResult) {
-        return VERIFICATION_FAILURE;
-    }
-    
-    return VERIFICATION_SUCCESS;
-}
 
 // implements chaincode logic for invoke
 int invoke(
@@ -101,6 +36,44 @@ int invoke(
     }
     else if (function_name == "getVerificationResult") {
         result = getVerificationResult(params[0], ctx);
+    }
+    else if (function_name == "putCipher") {
+        std::string cipherId = params[0];
+        std::string cipherB64 = params[1];
+
+        int err = putCipher(cipherB64, cipherId, ctx);
+        if (err) {
+            result = "FAILURE: FAILED TO PUT CIPHER ON LEDGER";
+        } else {
+            result = "SUCCESS: Successfully put ciphertext on ledger";
+        }
+    }
+    else if (function_name == "getCipher") {
+        std::string cipherId = params[0];
+
+        std::string cipherB64(sizeof(int) * BLEN, '\0');
+        int err = getCipher(cipherId, ctx, cipherB64);
+        if (err) {
+            result = "FAILURE: FAILED TO RETRIEVE CIPHER FROM LEDGER";
+        } else {
+            result = cipherB64;
+        }
+    }
+    else if (function_name == "updateCipher") {
+        std::string cipherId = params[0];
+        std::string keySwitchMat = params[1];
+        std::string b0prime = params[2];
+        const std::string err = updateCipher(cipherId, keySwitchMat, b0prime, ctx); // from tdue.h
+
+        result = err;
+        
+        /*if (err) {*/
+        /*    std::stringstream ss;*/
+        /*    ss << "FAILURE: Signature is not valid " << std::to_string(!err) << '\n';*/
+        /*    result = ss.str();*/
+        /*} else { */
+        /*    result = "SUCCESS: Signature is valid\n";*/
+        /*}*/
     }
     else
     {

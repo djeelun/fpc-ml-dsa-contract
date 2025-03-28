@@ -23,58 +23,37 @@ message(STATUS "Repository downloaded to: ${DILITHIUM_DIR}")
 
 set(DILITHIUM_REF_DIR ${DILITHIUM_DIR}/dilithium-src/ref)
 set(DILITHIUM_SOURCE_FILES 
-    ntt.c
-    packing.c
-    poly.c
-    polyvec.c
-    reduce.c
-    rounding.c
+    ${DILITHIUM_REF_DIR}/ntt.c
+    ${DILITHIUM_REF_DIR}/packing.c
+    ${DILITHIUM_REF_DIR}/poly.c
+    ${DILITHIUM_REF_DIR}/polyvec.c
+    ${DILITHIUM_REF_DIR}/reduce.c
+    ${DILITHIUM_REF_DIR}/rounding.c
     # sign.c
-    symmetric-shake.c
+    ${DILITHIUM_REF_DIR}/symmetric-shake.c
+    ${DILITHIUM_REF_DIR}/fips202.c
 )
 set(CUSTOM_SIGN_PATH ${CMAKE_CURRENT_SOURCE_DIR}/custom_sign/sign.c)
 
 # Build static libraries for each version of ml-dsa
-add_custom_command(
-    OUTPUT libpqcrystals_dilithium2_ref.a
-    COMMAND cc -c -nostartfiles -Wall -Wextra -Wpedantic -Wmissing-prototypes -Wredundant-decls
-            -Wshadow -Wvla -Wpointer-arith -O3 -fomit-frame-pointer -DDILITHIUM_MODE=2
-            ${DILITHIUM_SOURCE_FILES} ${CUSTOM_SIGN_PATH} fips202.c
-    COMMAND ar -rcs libpqcrystals_dilithium2_ref.a ntt.o packing.o poly.o polyvec.o reduce.o rounding.o sign.o symmetric-shake.o fips202.o
-    WORKING_DIRECTORY ${DILITHIUM_REF_DIR}
-    COMMENT "Building static library: libpqcrystals_dilithium2_ref.a"
-    VERBATIM
-)
-add_custom_command(
-    OUTPUT libpqcrystals_dilithium3_ref.a
-    COMMAND cc -c -nostartfiles -Wall -Wextra -Wpedantic -Wmissing-prototypes -Wredundant-decls
-            -Wshadow -Wvla -Wpointer-arith -O3 -fomit-frame-pointer -DDILITHIUM_MODE=3
-            ${DILITHIUM_SOURCE_FILES} ${CUSTOM_SIGN_PATH} fips202.c
-    COMMAND ar -rcs libpqcrystals_dilithium3_ref.a ntt.o packing.o poly.o polyvec.o reduce.o rounding.o sign.o symmetric-shake.o fips202.o
-    WORKING_DIRECTORY ${DILITHIUM_REF_DIR}
-    COMMENT "Building static library: libpqcrystals_dilithium3_ref.a"
-    VERBATIM
-)
-add_custom_command(
-    OUTPUT libpqcrystals_dilithium5_ref.a
-    COMMAND cc -c -nostartfiles -Wall -Wextra -Wpedantic -Wmissing-prototypes -Wredundant-decls
-            -Wshadow -Wvla -Wpointer-arith -O3 -fomit-frame-pointer -DDILITHIUM_MODE=5
-            ${DILITHIUM_SOURCE_FILES} ${CUSTOM_SIGN_PATH} fips202.c
-    COMMAND ar -rcs libpqcrystals_dilithium5_ref.a ntt.o packing.o poly.o polyvec.o reduce.o rounding.o sign.o symmetric-shake.o fips202.o
-    WORKING_DIRECTORY ${DILITHIUM_REF_DIR}
-    COMMENT "Building static library: libpqcrystals_dilithium5_ref.a"
-    VERBATIM
-)
-
-# This makes sure the libraries get built every time
-add_custom_target(
-  build_dilithium_lib ALL
-  DEPENDS libpqcrystals_dilithium2_ref.a libpqcrystals_dilithium3_ref.a libpqcrystals_dilithium5_ref.a
+add_library(pqcrystals_dilithium2_ref STATIC ${DILITHIUM_SOURCE_FILES} ${CUSTOM_SIGN_PATH})
+target_compile_definitions(pqcrystals_dilithium2_ref PRIVATE DILITHIUM_MODE=2)
+add_library(pqcrystals_dilithium3_ref STATIC ${DILITHIUM_SOURCE_FILES} ${CUSTOM_SIGN_PATH})
+target_compile_definitions(pqcrystals_dilithium3_ref PRIVATE DILITHIUM_MODE=3)
+add_library(pqcrystals_dilithium5_ref STATIC ${DILITHIUM_SOURCE_FILES} ${CUSTOM_SIGN_PATH})
+target_compile_definitions(pqcrystals_dilithium5_ref PRIVATE DILITHIUM_MODE=5)
+# Set the output directory for the static libraries
+set_target_properties(pqcrystals_dilithium2_ref pqcrystals_dilithium3_ref pqcrystals_dilithium5_ref
+    PROPERTIES
+    ARCHIVE_OUTPUT_DIRECTORY ${DILITHIUM_REF_DIR}
 )
 
 # Source files for chaincode
 set(SOURCE_FILES
     ml_dsa_cc.cpp
+    verification.cpp
+    tdue.cpp
+    b64.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/utils/hexutils.cpp
 )
 
@@ -82,6 +61,7 @@ set(SOURCE_FILES
 include_directories(
     ${DILITHIUM_REF_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/utils
+    ${CMAKE_CURRENT_SOURCE_DIR} # For tdue.h
 )
 
 # Defines target enclave
