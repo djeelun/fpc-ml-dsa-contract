@@ -43,7 +43,8 @@ int invoke(
 
         int err = putCipher(cipherB64, cipherId, ctx);
         if (err) {
-            result = "FAILURE: FAILED TO PUT CIPHER ON LEDGER";
+            /*result = "FAILURE: FAILED TO PUT CIPHER ON LEDGER";*/
+            result = cipherB64;
         } else {
             result = "SUCCESS: Successfully put ciphertext on ledger";
         }
@@ -63,17 +64,7 @@ int invoke(
         std::string cipherId = params[0];
         std::string keySwitchMat = params[1];
         std::string b0prime = params[2];
-        const std::string err = updateCipher(cipherId, keySwitchMat, b0prime, ctx); // from tdue.h
-
-        result = err;
-        
-        /*if (err) {*/
-        /*    std::stringstream ss;*/
-        /*    ss << "FAILURE: Signature is not valid " << std::to_string(!err) << '\n';*/
-        /*    result = ss.str();*/
-        /*} else { */
-        /*    result = "SUCCESS: Signature is valid\n";*/
-        /*}*/
+        result = updateCipher(cipherId, keySwitchMat, b0prime, ctx); // from tdue.h
     }
     else
     {

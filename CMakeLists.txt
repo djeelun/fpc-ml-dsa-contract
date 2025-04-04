@@ -54,7 +54,6 @@ set(SOURCE_FILES
     verification.cpp
     tdue.cpp
     b64.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/utils/hexutils.cpp
 )
 
 # Include headers

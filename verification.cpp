@@ -1,45 +1,45 @@
 #include "shim.h"
 #include "verification.h"
-#include "hexutils.h"
+#include "b64.h"
 #include <string>
 extern "C" {
     #include "api.h"
 }
 
 // Verify signature given public key, message, and signature
-// Arguments are given as hex strings
+// Arguments are given as base64 encoded strings
 int verifySig(std::string _sig, std::string _m, std::string _ctx, std::string _pk, std::string _ml_dsa_version)
 {
     LOG_DEBUG("ML_DSA_CC: +++ verifySig +++");
     
-    std::vector<uint8_t> sig = hex_string_to_bytes(_sig); // from hexutils.h
-    const uint8_t* sigArr = &sig[0];
+    std::string sig = b64decode(_sig);
+    const uint8_t* sigArr = (uint8_t *)sig.data();
  
-    std::vector<uint8_t> m = hex_string_to_bytes(_m);
-    const uint8_t* mArr = &m[0];
+    std::string m = b64decode(_m);
+    const uint8_t* mArr = (uint8_t *)m.data();
 
-    std::vector<uint8_t> pk = hex_string_to_bytes(_pk);
-    const uint8_t* pkArr = &pk[0];
+    std::string pk = b64decode(_pk);
+    const uint8_t* pkArr = (uint8_t *)pk.data();
 
     if (_ctx.empty()) {
         if (_ml_dsa_version == "3") {
-    	      return pqcrystals_dilithium3_ref_verify(sigArr, sig.size(), mArr, m.size(), NULL, 0, pkArr);
+    	      return pqcrystals_dilithium3_ref_verify(sigArr, sig.length(), mArr, m.length(), NULL, 0, pkArr);
         } else if (_ml_dsa_version == "5") {
-    	      return pqcrystals_dilithium5_ref_verify(sigArr, sig.size(), mArr, m.size(), NULL, 0, pkArr);
+    	      return pqcrystals_dilithium5_ref_verify(sigArr, sig.length(), mArr, m.length(), NULL, 0, pkArr);
         } else {
-    	      return pqcrystals_dilithium2_ref_verify(sigArr, sig.size(), mArr, m.size(), NULL, 0, pkArr);
+    	      return pqcrystals_dilithium2_ref_verify(sigArr, sig.length(), mArr, m.length(), NULL, 0, pkArr);
         }
     }
 
-    std::vector<uint8_t> ctx = hex_string_to_bytes(_ctx);
-    uint8_t* ctxArr = &ctx[0];
+    std::string ctx = b64decode(_ctx);
+    uint8_t* ctxArr = (uint8_t *)ctx.data();
 
     if (_ml_dsa_version == "3") {
-        return pqcrystals_dilithium3_ref_verify(sigArr, sig.size(), mArr, m.size(), ctxArr, ctx.size(), pkArr);
+        return pqcrystals_dilithium3_ref_verify(sigArr, sig.length(), mArr, m.length(), ctxArr, ctx.length(), pkArr);
     } else if (_ml_dsa_version == "5") {
-        return pqcrystals_dilithium5_ref_verify(sigArr, sig.size(), mArr, m.size(), ctxArr, ctx.size(), pkArr);
+        return pqcrystals_dilithium5_ref_verify(sigArr, sig.length(), mArr, m.length(), ctxArr, ctx.length(), pkArr);
     } else {
-        return pqcrystals_dilithium2_ref_verify(sigArr, sig.size(), mArr, m.size(), ctxArr, ctx.size(), pkArr);
+        return pqcrystals_dilithium2_ref_verify(sigArr, sig.length(), mArr, m.length(), ctxArr, ctx.length(), pkArr);
     }
 }
 

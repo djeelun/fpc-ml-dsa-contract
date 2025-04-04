@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 
+# This script exports some environment variables that need to be present
+# before running most other FPC dev environment related commands
+
 echo "SETTING GOPATH AND FPCPATH ENVIRONMENT VARIABLES"
 
-export GOPATH=/home/dace/go
+export GOPATH=$HOME/go
 export FPC_PATH=$GOPATH/src/github.com/hyperledger/fabric-private-chaincode
 
