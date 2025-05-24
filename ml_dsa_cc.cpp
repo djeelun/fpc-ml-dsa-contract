@@ -42,9 +42,15 @@ int invoke(
         std::string cipherB64 = params[1];
 
         int err = putCipher(cipherB64, cipherId, ctx);
-        if (err) {
-            /*result = "FAILURE: FAILED TO PUT CIPHER ON LEDGER";*/
-            result = cipherB64;
+        if (err == -1) {
+            result = "Error: ID can't be empty";
+            // result = cipherB64;
+        } else if (err == -2) {
+            result = "Error: Incorrect ciphertext size";
+            // result = cipherB64;
+        } else if (err == -3) {
+            result = "Error: Memory allocation failed";
+            // result = cipherB64;
         } else {
             result = "SUCCESS: Successfully put ciphertext on ledger";
         }
@@ -54,17 +60,20 @@ int invoke(
 
         std::string cipherB64(sizeof(int) * BLEN, '\0');
         int err = getCipher(cipherId, ctx, cipherB64);
-        if (err) {
-            result = "FAILURE: FAILED TO RETRIEVE CIPHER FROM LEDGER";
+        if (err == -1) {
+            result = "Error: Key not found";
+        } else if (err == -2) {
+            result = "Error: Incorrect ciphertext size";
         } else {
             result = cipherB64;
         }
     }
     else if (function_name == "updateCipher") {
         std::string cipherId = params[0];
-        std::string keySwitchMat = params[1];
-        std::string b0prime = params[2];
-        result = updateCipher(cipherId, keySwitchMat, b0prime, ctx); // from tdue.h
+        // std::string keySwitchMat = params[1];
+        // std::string b0prime = params[2];
+        std::string token = params[1];
+        result = updateCipher(cipherId, token, ctx); // from tdue.h
     }
     else
     {

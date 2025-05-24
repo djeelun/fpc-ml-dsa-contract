@@ -18,7 +18,7 @@ struct CipherVec {
 
 // Ciphertext update function
 // keySwitchMat and b0prime are given in base64 encoded string
-std::string updateCipher(const std::string cipherId, const std::string keySwitchMatB64, const std::string b0primeB64, shim_ctx_ptr_t ctx);
+std::string updateCipher(const std::string cipherId, const std::string tokenB64, shim_ctx_ptr_t ctx);
 
 int getCipher(const std::string cipherId, shim_ctx_ptr_t ctx, std::string &cipherB64);
 int putCipher(const std::string cipherB64, const std::string cipherId, shim_ctx_ptr_t ctx);

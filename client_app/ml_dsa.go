@@ -158,10 +158,9 @@ func updateCipher(contract fpc.Contract) {
   }
 
 	// update ciphertext to new epoch
-  keyswitchtoken := readSingleLineFromFile(tdueTxtsDir + "tdue_keyswitchmat.txt")
-  b0prime := readSingleLineFromFile(tdueTxtsDir + "tdue_b0prime.txt")
+  keyswitchtoken := readSingleLineFromFile(tdueTxtsDir + "tdue_token.txt")
   logger.Infof("--> Invoke FPC Chaincode: updateCipher")
-  result, err = contract.SubmitTransaction("updateCipher", cipherId, keyswitchtoken, b0prime) // Replace with cipher id and update token
+  result, err = contract.SubmitTransaction("updateCipher", cipherId, keyswitchtoken)
   if err != nil {
     logger.Infof("--> ERROR: %v", err)
   } else {
