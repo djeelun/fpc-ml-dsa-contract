@@ -1,40 +1,13 @@
 #include "shim.h"
 #include "logging.h"
-#include "hexutils.h"
+#include "tdue.h"
+#include "verification.h"
 #include <string>
 #include <sstream>
 #include <stddef.h>
 #include <stdint.h>
 #include <vector>
-extern "C" {
-    #include "randombytes.h"   
-    #include "sign.h"
-}
-
-// Verify signature given public key, message, and signature
-// Arguments are given as hex strings
-int verifySig(std::string _sig, std::string _m, std::string _ctx, std::string _pk)
-{
-    LOG_DEBUG("ML_DSA_CC: +++ verifySig +++");
-    
-    std::vector<uint8_t> sig = hex_string_to_bytes(_sig); // from hexutils.h
-    const uint8_t* sigArr = &sig[0];
- 
-    std::vector<uint8_t> m = hex_string_to_bytes(_m);
-    const uint8_t* mArr = &m[0];
-
-    std::vector<uint8_t> pk = hex_string_to_bytes(_pk);
-    const uint8_t* pkArr = &pk[0];
-
-    if (_ctx.empty()) {
-    	return crypto_sign_verify(sigArr, sig.size(), mArr, m.size(), NULL, 0, pkArr);
-    }
-
-    std::vector<uint8_t> ctx = hex_string_to_bytes(_ctx);
-    uint8_t* ctxArr = &ctx[0];
-    
-    return crypto_sign_verify(sigArr, sig.size(), mArr, m.size(), ctxArr, ctx.size(), pkArr);
-}
+#include <numeric>
 
 // implements chaincode logic for invoke
 int invoke(
@@ -46,27 +19,61 @@ int invoke(
     LOG_DEBUG("ML_DSA_CC: +++ Executing ML-DSA chaincode invocation +++");
 
     std::string function_name;
-    std::vector<std::string> params;
+    std::vector<std::string> params; // sig, msg, ctx, pk, ml_dsa_version (respectively)
     get_func_and_params(function_name, params, ctx);
-    // std::string asset_name = params[0];
     std::string result;
 
     if (function_name == "verifySig")
     {
-        std::string sig = params[0];
-        std::string msg = params[1];
-        std::string ctx = params[2];
-        std::string pubkey = params[3];
-        const int is_valid = verifySig(sig, msg, ctx, pubkey);
-        
-        std::stringstream ss;
-        
-        if (is_valid == 0) {
-            result = "SUCCESS: Signature is valid\n";
-        } else { // is_valid == -1
-            ss << "FAILURE: Signature is not valid " << std::to_string(is_valid) << '\n';
-            result = ss.str();
+        const int is_valid = verifySig(params[0], params[1], params[2], params[3], params[4]);
+        result = is_valid ? VERIFICATION_FAILURE : VERIFICATION_SUCCESS;
+    }
+    else if (function_name == "putVerificationResult") {
+        const int is_valid = verifySig(params[0], params[1], params[2], params[3], params[4]);
+        const bool verificationResult = (is_valid == 0);
+
+        result = putVerificationResult(params[0], verificationResult, ctx);
+    }
+    else if (function_name == "getVerificationResult") {
+        result = getVerificationResult(params[0], ctx);
+    }
+    else if (function_name == "putCipher") {
+        std::string cipherId = params[0];
+        std::string cipherB64 = params[1];
+
+        int err = putCipher(cipherB64, cipherId, ctx);
+        if (err == -1) {
+            result = "Error: ID can't be empty";
+            // result = cipherB64;
+        } else if (err == -2) {
+            result = "Error: Incorrect ciphertext size";
+            // result = cipherB64;
+        } else if (err == -3) {
+            result = "Error: Memory allocation failed";
+            // result = cipherB64;
+        } else {
+            result = "SUCCESS: Successfully put ciphertext on ledger";
         }
+    }
+    else if (function_name == "getCipher") {
+        std::string cipherId = params[0];
+
+        std::string cipherB64(sizeof(int) * BLEN, '\0');
+        int err = getCipher(cipherId, ctx, cipherB64);
+        if (err == -1) {
+            result = "Error: Key not found";
+        } else if (err == -2) {
+            result = "Error: Incorrect ciphertext size";
+        } else {
+            result = cipherB64;
+        }
+    }
+    else if (function_name == "updateCipher") {
+        std::string cipherId = params[0];
+        // std::string keySwitchMat = params[1];
+        // std::string b0prime = params[2];
+        std::string token = params[1];
+        result = updateCipher(cipherId, token, ctx); // from tdue.h
     }
     else
     {
